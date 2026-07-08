@@ -6,12 +6,14 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"runtime/debug"
 	"strconv"
 	"sync"
 	"time"
 
+	"backend/internal/api/services"
 	"backend/internal/logger"
 	"backend/internal/metrics"
 
@@ -301,4 +303,35 @@ func (tw *timeoutWriter) Write(b []byte) (int, error) {
 
 func (tw *timeoutWriter) HeaderWritten() bool {
 	return tw.headerWritten
+}
+
+// FailureSimulatorMiddleware injects API delay and random 500 errors dynamically
+func FailureSimulatorMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		services.FailureConfig.Lock()
+		apiDelay := services.FailureConfig.APIDelay
+		randomErrors := services.FailureConfig.RandomErrors
+		services.FailureConfig.Unlock()
+
+		if apiDelay > 0 {
+			time.Sleep(apiDelay)
+		}
+
+		if randomErrors {
+			// Inject 25% random failures on normal endpoints (excluding health and metrics targets)
+			path := c.Request.URL.Path
+			if path != "/health" && path != "/metrics" && rand.Float32() < 0.25 {
+				reqID, _ := c.Get("request_id").(string)
+				logger.Log.Error("Simulated random HTTP API failure triggered", zap.String("request_id", reqID))
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error":      "Internal Server Error (Simulated random API failure)",
+					"request_id": reqID,
+				})
+				c.Abort()
+				return
+			}
+		}
+
+		c.Next()
+	}
 }

@@ -50,12 +50,32 @@ func main() {
 	r.Use(middleware.RecoveryMiddleware())
 	r.Use(middleware.LoggingMiddleware())
 	r.Use(middleware.PrometheusMiddleware())
+	r.Use(middleware.FailureSimulatorMiddleware())
 	r.Use(middleware.RateLimitMiddleware(rl))
 	r.Use(middleware.TimeoutMiddleware(15 * time.Second))
 
 	// Basic routes
 	r.GET("/health", handlers.HealthCheck)
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// Sandbox REST APIs
+	r.POST("/sandbox", handlers.CreateSandbox)
+	r.GET("/sandbox", handlers.ListSandboxes)
+	r.GET("/sandbox/:id", handlers.GetSandbox)
+	r.DELETE("/sandbox/:id", handlers.DeleteSandbox)
+	r.POST("/sandbox/:id/connect", handlers.ConnectSandbox)
+	r.POST("/sandbox/:id/disconnect", handlers.DisconnectSandbox)
+	r.POST("/sandbox/:id/run-command", handlers.RunCommandSandbox)
+	r.GET("/logs", handlers.GetLogs)
+
+	// Failure Simulation APIs
+	r.POST("/simulate/api-delay", handlers.SimulateAPIDelay)
+	r.POST("/simulate/db-delay", handlers.SimulateDBDelay)
+	r.POST("/simulate/db-failure", handlers.SimulateDBFailure)
+	r.POST("/simulate/vsi-timeout", handlers.SimulateVSITimeout)
+	r.POST("/simulate/high-memory", handlers.SimulateHighMemory)
+	r.POST("/simulate/high-cpu", handlers.SimulateHighCPU)
+	r.POST("/simulate/random-errors", handlers.SimulateRandomErrors)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,

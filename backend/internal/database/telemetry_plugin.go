@@ -3,6 +3,7 @@ package database
 import (
 	"time"
 
+	"backend/internal/api/services"
 	"backend/internal/metrics"
 
 	"gorm.io/gorm"
@@ -32,6 +33,11 @@ func (p *TelemetryPlugin) Initialize(db *gorm.DB) error {
 
 func beforeCallback(db *gorm.DB) {
 	db.InstanceSet("query_start_time", time.Now())
+	
+	// Intercept DB query for simulated failures or delays
+	if err := services.FailureConfig.InterceptDBQuery(); err != nil {
+		db.Error = err
+	}
 }
 
 func afterCallback(queryType string) func(*gorm.DB) {
