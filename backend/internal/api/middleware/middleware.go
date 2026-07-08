@@ -3,7 +3,7 @@ package middleware
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
+	cryptorand "crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -24,7 +24,7 @@ import (
 // Generate a unique Request ID
 func generateRequestID() string {
 	bytes := make([]byte, 16)
-	_, _ = rand.Read(bytes)
+	_, _ = cryptorand.Read(bytes)
 	return hex.EncodeToString(bytes)
 }
 
@@ -62,7 +62,7 @@ func RecoveryMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				reqID, _ := c.Get("request_id").(string)
+				reqID := c.GetString("request_id")
 				method := c.Request.Method
 				path := c.Request.URL.Path
 
@@ -101,7 +101,7 @@ func LoggingMiddleware() gin.HandlerFunc {
 
 		latency := time.Since(start)
 		status := c.Writer.Status()
-		reqID, _ := c.Get("request_id").(string)
+		reqID := c.GetString("request_id")
 		userAgent := c.Request.UserAgent()
 		clientIP := c.ClientIP()
 
@@ -228,7 +228,7 @@ func RateLimitMiddleware(rl *RateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
 		if !rl.Limit(ip) {
-			reqID, _ := c.Get("request_id").(string)
+			reqID := c.GetString("request_id")
 			logger.Log.Warn("Rate limit exceeded", zap.String("ip", ip), zap.String("request_id", reqID))
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error":      "Too Many Requests - Rate Limit Exceeded",
@@ -272,7 +272,7 @@ func TimeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
 			}
 		case <-ctx.Done():
 			// Timeout occurred
-			reqID, _ := c.Get("request_id").(string)
+			reqID := c.GetString("request_id")
 			logger.Log.Error("Request Timeout Triggered", zap.String("request_id", reqID), zap.Duration("limit", timeout))
 			
 			c.Writer.Header().Set("Content-Type", "application/json")
@@ -321,7 +321,7 @@ func FailureSimulatorMiddleware() gin.HandlerFunc {
 			// Inject 25% random failures on normal endpoints (excluding health and metrics targets)
 			path := c.Request.URL.Path
 			if path != "/health" && path != "/metrics" && rand.Float32() < 0.25 {
-				reqID, _ := c.Get("request_id").(string)
+				reqID := c.GetString("request_id")
 				logger.Log.Error("Simulated random HTTP API failure triggered", zap.String("request_id", reqID))
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"error":      "Internal Server Error (Simulated random API failure)",

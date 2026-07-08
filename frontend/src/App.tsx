@@ -10,14 +10,12 @@ import {
   Play, 
   Power, 
   Trash2, 
-  User, 
   Search, 
   Server, 
   Database, 
   Cpu, 
   RefreshCw,
-  Clock,
-  CheckCircle2
+  Clock
 } from 'lucide-react';
 
 // API Configurations
@@ -54,7 +52,7 @@ export default function App() {
   // Health and polling metrics
   const [backendHealth, setBackendHealth] = useState<'UP' | 'DOWN' | 'PENDING'>('PENDING');
   const [apiLatencyHistory, setApiLatencyHistory] = useState<number[]>(new Array(15).fill(0));
-  const [pollingActive, setPollingActive] = useState(true);
+  const [pollingActive] = useState(true);
 
   // Failure states
   const [simApiDelay, setSimApiDelay] = useState(0);
