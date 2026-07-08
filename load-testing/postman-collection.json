@@ -1,0 +1,350 @@
+{
+  "info": {
+    "_postman_id": "9d903e1e-f350-4820-91a1-cf5e8bdf4080",
+    "name": "Sandbox Observability Platform API Collection",
+    "description": "Collection containing endpoints for the Sandbox Observability Platform including CRUD operations, VSI simulator actions, and failure simulation endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "System & Health",
+      "item": [
+        {
+          "name": "Get API Health Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "Get Prometheus Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/metrics",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["metrics"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sandbox Operations",
+      "item": [
+        {
+          "name": "Create Sandbox",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sandbox_name\": \"prod-vsi-host\",\n  \"owner\": \"devops-admin@enterprise.com\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/sandbox",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["sandbox"]
+            }
+          }
+        },
+        {
+          "name": "List Sandboxes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/sandbox",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["sandbox"]
+            }
+          }
+        },
+        {
+          "name": "Get Sandbox by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/sandbox/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["sandbox", "1"]
+            }
+          }
+        },
+        {
+          "name": "Connect Sandbox VSI",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/sandbox/1/connect",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["sandbox", "1", "connect"]
+            }
+          }
+        },
+        {
+          "name": "Run command on VSI",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"command\": \"uname -a\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/sandbox/1/run-command",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["sandbox", "1", "run-command"]
+            }
+          }
+        },
+        {
+          "name": "Disconnect Sandbox VSI",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/sandbox/1/disconnect",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["sandbox", "1", "disconnect"]
+            }
+          }
+        },
+        {
+          "name": "Delete Sandbox",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/sandbox/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["sandbox", "1"]
+            }
+          }
+        },
+        {
+          "name": "Query Database logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/logs?level=ERROR",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["logs"],
+              "query": [
+                {
+                  "key": "level",
+                  "value": "ERROR"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Failure Simulations",
+      "item": [
+        {
+          "name": "Simulate API Delay",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"delay_ms\": 2000\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/simulate/api-delay",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["simulate", "api-delay"]
+            }
+          }
+        },
+        {
+          "name": "Simulate Database Query Delay",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"delay_ms\": 2000\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/simulate/db-delay",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["simulate", "db-delay"]
+            }
+          }
+        },
+        {
+          "name": "Simulate Database Failure",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enable\": true\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/simulate/db-failure",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["simulate", "db-failure"]
+            }
+          }
+        },
+        {
+          "name": "Simulate VSI Timeout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enable\": true\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/simulate/vsi-timeout",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["simulate", "vsi-timeout"]
+            }
+          }
+        },
+        {
+          "name": "Simulate High CPU Stress",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enable\": true\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/simulate/high-cpu",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["simulate", "high-cpu"]
+            }
+          }
+        },
+        {
+          "name": "Simulate High Memory Leak",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"megabytes\": 100\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/simulate/high-memory",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["simulate", "high-memory"]
+            }
+          }
+        },
+        {
+          "name": "Simulate Random HTTP Errors",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enable\": true\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/simulate/random-errors",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["simulate", "random-errors"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
