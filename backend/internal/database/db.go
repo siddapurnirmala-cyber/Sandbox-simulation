@@ -48,5 +48,15 @@ func InitDB(cfg *configs.Config) {
 	}
 
 	logger.Log.Info("Database migrations completed successfully")
+
+	// Use Prometheus Telemetry Plugin
+	err = db.Use(&TelemetryPlugin{})
+	if err != nil {
+		logger.Log.Fatal("Failed to register database telemetry plugin", zap.Error(err))
+	}
+
+	// Start database stats monitoring
+	StartStatsReporting(db)
+
 	DB = db
 }

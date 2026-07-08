@@ -10,8 +10,10 @@ import (
 
 	"backend/configs"
 	"backend/internal/api/handlers"
+	"backend/internal/api/middleware"
 	"backend/internal/database"
 	"backend/internal/logger"
+	"backend/internal/metrics"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -29,6 +31,9 @@ func main() {
 
 	logger.Log.Info("Starting Sandbox Observability Platform backend...")
 
+	// Register Prometheus metrics
+	metrics.RegisterMetrics()
+
 	// Initialize Database
 	database.InitDB(cfg)
 
@@ -36,8 +41,17 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
-	// Setup fallback recovery middleware
-	r.Use(gin.Recovery())
+	// Initialize Rate Limiter: allows 50 requests/sec, burst up to 100 per IP
+	rl := middleware.NewRateLimiter(50.0, 100.0)
+
+	// Wire global middlewares (order: RequestID -> CORS -> Recovery -> Logging -> Prometheus -> RateLimiter -> Timeout)
+	r.Use(middleware.RequestIDMiddleware())
+	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.RecoveryMiddleware())
+	r.Use(middleware.LoggingMiddleware())
+	r.Use(middleware.PrometheusMiddleware())
+	r.Use(middleware.RateLimitMiddleware(rl))
+	r.Use(middleware.TimeoutMiddleware(15 * time.Second))
 
 	// Basic routes
 	r.GET("/health", handlers.HealthCheck)
