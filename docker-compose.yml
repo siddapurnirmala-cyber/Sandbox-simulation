@@ -114,8 +114,10 @@ services:
       - ./monitoring/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
       - "8081:80"
+      - "9090:81"
     depends_on:
       - backend
 
 volumes:
   postgres-data:
+
