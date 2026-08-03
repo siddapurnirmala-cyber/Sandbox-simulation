@@ -67,15 +67,23 @@ func main() {
 	r.POST("/sandbox/:id/disconnect", handlers.DisconnectSandbox)
 	r.POST("/sandbox/:id/run-command", handlers.RunCommandSandbox)
 	r.GET("/logs", handlers.GetLogs)
+	r.POST("/telemetry/ui-load", handlers.ReportUILoadTime)
 
 	// Failure Simulation APIs
 	r.POST("/simulate/api-delay", handlers.SimulateAPIDelay)
+	r.GET("/simulate/api-delay/:ms", handlers.SimulateAPIDelayGet)
 	r.POST("/simulate/db-delay", handlers.SimulateDBDelay)
+	r.GET("/simulate/db-delay/:ms", handlers.SimulateDBDelayGet)
+	r.POST("/simulate/ui-delay", handlers.SimulateUIDelay)
+	r.GET("/simulate/ui-delay/:ms", handlers.SimulateUIDelayGet)
+	r.GET("/simulate/ui-delay", handlers.GetUIDelay)
 	r.POST("/simulate/db-failure", handlers.SimulateDBFailure)
 	r.POST("/simulate/vsi-timeout", handlers.SimulateVSITimeout)
 	r.POST("/simulate/high-memory", handlers.SimulateHighMemory)
 	r.POST("/simulate/high-cpu", handlers.SimulateHighCPU)
 	r.POST("/simulate/random-errors", handlers.SimulateRandomErrors)
+	r.POST("/simulate/heavy-load", handlers.SimulateHeavyLoad)
+	r.GET("/simulate/states", handlers.GetSimulationStates)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,

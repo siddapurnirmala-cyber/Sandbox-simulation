@@ -1,6 +1,6 @@
 # Sandbox Observability Platform
 
-The **Sandbox Observability Platform** is a production-style, containerized full-stack application designed to demonstrate backend, frontend, database, and infrastructure observability. It serves as an enterprise-level demo for monitoring, distributed logging, performance telemetry, and system saturation analysis using Prometheus, Grafana, Loki, Promtail, PostgreSQL, and Docker.
+The **Sandbox Observability Platform** is a production-style, containerized full-stack application designed to demonstrate backend, frontend, database, and infrastructure observability. It serves as an enterprise-level demo for monitoring and system saturation analysis using Prometheus, Grafana, PostgreSQL, and Docker.
 
 Intentionally built to demonstrate the **Four Golden Signals** (Latency, Traffic, Errors, and Saturation), the platform exposes deep HTTP and Database performance hooks and includes dedicated failure simulation controllers to stress the system and verify alerting paths.
 
@@ -14,17 +14,12 @@ graph TD
     GoBackend -->|Read/Write GORM| Postgres[(PostgreSQL DB)]
     GoBackend -->|Simulated Net Conns| VSI[Simulated VSI Service]
     GoBackend -->|Prometheus Metrics| PromEndpoint[GET /metrics]
-    GoBackend -->|Structured JSON Logs| LogFile[(/var/log/sandbox/backend.log)]
     
     Prometheus[Prometheus Server] -->|Scrapes /metrics| PromEndpoint
     Prometheus -->|Scrapes Node Stats| NodeExporter[Node Exporter]
     Prometheus -->|Scrapes DB Stats| PostgresExporter[PostgreSQL Exporter]
     
-    Promtail[Promtail Agent] -->|Tails JSON Logs| LogFile
-    Promtail -->|Pushes parsed labels| Loki[Loki Log Server]
-    
     Grafana[Grafana Visualization] -->|PromQL Queries| Prometheus
-    Grafana -->|LogQL Queries| Loki
 ```
 
 ### Port Layout
@@ -35,7 +30,6 @@ graph TD
 - **PostgreSQL Database**: `localhost:5432` (Database: `sandbox_db`)
 - **Postgres Exporter**: `http://localhost:9187`
 - **Node Exporter**: `http://localhost:9100`
-- **Loki Log Server**: `http://localhost:3100`
 
 ---
 
@@ -77,15 +71,11 @@ frontend/
   nginx.conf                  # Static files Nginx routing config
   Dockerfile                  # Build compiler & static runtime configuration
 
-monitoring/
-  prometheus/
-    prometheus.yml            # Scrape targets for Go, Node, Loki & PostgreSQL
-  loki/
-    loki-config.yml           # Log indexing & storage configuration
-  promtail/
-    promtail-config.yml       # JSON parse stages & label extraction maps
-  grafana/
-    dashboards/               # 5 JSON pre-built dashboard templates
+monitoring:
+  prometheus:
+    prometheus.yml            # Scrape targets for Go, Node & PostgreSQL
+  grafana:
+    dashboards/               # 4 JSON pre-built dashboard templates
     provisioning/             # Datasources and Providers auto-loader config
 
 load-testing/
@@ -176,15 +166,12 @@ This project is built to demonstrate the **Four Golden Signals**:
 
 ---
 
-## 📊 Pre-Provisioned Grafana Dashboards
-
-Grafana automatically loads 5 dashboards on startup:
+Grafana automatically loads 4 dashboards on startup:
 
 1. **Dashboard 1: Backend APIs**: Visualizes Golden Signals (throughput rates, concurrency, latencies, and HTTP response codes).
 2. **Dashboard 2: Database**: Displays GORM query counts, SELECT/INSERT/UPDATE/DELETE latency times, query errors, and slow queries.
 3. **Dashboard 3: Infrastructure**: Details machine-level states (node CPU, physical memory) and Go runtime stats (heap size, goroutines, OS threads).
 4. **Dashboard 4: VSI Monitoring**: Tracks connectivity success percentages, connect latency, and connection failures.
-5. **Dashboard 5: Loki Logs Console**: Integrates Loki log streams with text filter queries and index searches by **Request ID**.
 
 ---
 
@@ -206,8 +193,6 @@ This script will ramp up virtual users, generate CRUD activity on the database, 
 ### Container Connection Refused
 Ensure PostgreSQL has completed startup before sending API requests. The Go backend container uses a built-in database ping retry logic that sleeps for 3 seconds between attempts. It will wait up to 30 seconds for PostgreSQL to accept connections.
 
-### Logs do not appear in Loki
-Check Promtail log inputs. Promtail is configured to scrape the named volume `/var/log/sandbox/backend.log`. Verify the volume mounting configurations in `docker-compose.yml` if logs fail to load in Loki.
 
 ### Grafana Dashboards are Empty
 Verify that Prometheus is scraping targets. Open the Prometheus console at `http://localhost:9090/targets` and verify that the backend, Node Exporter, and Postgres Exporter status cards are green (status `UP`).

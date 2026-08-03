@@ -37,7 +37,7 @@ func CreateSandbox(c *gin.Context) {
 		Status:      "STOPPED",
 	}
 
-	if err := database.DB.Create(&sandbox).Error; err != nil {
+	if err := database.DB.WithContext(c).Create(&sandbox).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create sandbox"})
 		return
 	}
@@ -50,7 +50,7 @@ func CreateSandbox(c *gin.Context) {
 		Message:   "Sandbox created and initialized in STOPPED state.",
 		LogLevel:  "INFO",
 	}
-	_ = database.DB.Create(&auditLog)
+	_ = database.DB.WithContext(c).Create(&auditLog)
 
 	c.JSON(http.StatusCreated, sandbox)
 }
@@ -58,7 +58,7 @@ func CreateSandbox(c *gin.Context) {
 // GET /sandbox
 func ListSandboxes(c *gin.Context) {
 	var sandboxes []models.Sandbox
-	if err := database.DB.Find(&sandboxes).Error; err != nil {
+	if err := database.DB.WithContext(c).Find(&sandboxes).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query sandboxes"})
 		return
 	}
@@ -76,7 +76,7 @@ func GetSandbox(c *gin.Context) {
 	}
 
 	var sandbox models.Sandbox
-	if err := database.DB.First(&sandbox, uint(id)).Error; err != nil {
+	if err := database.DB.WithContext(c).First(&sandbox, uint(id)).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Sandbox not found"})
 		return
 	}
@@ -94,15 +94,15 @@ func DeleteSandbox(c *gin.Context) {
 	}
 
 	var sandbox models.Sandbox
-	if err := database.DB.First(&sandbox, uint(id)).Error; err != nil {
+	if err := database.DB.WithContext(c).First(&sandbox, uint(id)).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Sandbox not found"})
 		return
 	}
 
 	// Delete sandbox logs first
-	_ = database.DB.Where("sandbox_id = ?", uint(id)).Delete(&models.SandboxLog{})
+	_ = database.DB.WithContext(c).Where("sandbox_id = ?", uint(id)).Delete(&models.SandboxLog{})
 
-	if err := database.DB.Delete(&sandbox).Error; err != nil {
+	if err := database.DB.WithContext(c).Delete(&sandbox).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete sandbox"})
 		return
 	}
@@ -122,14 +122,14 @@ func ConnectSandbox(c *gin.Context) {
 	}
 
 	var sandbox models.Sandbox
-	if err := database.DB.First(&sandbox, uint(id)).Error; err != nil {
+	if err := database.DB.WithContext(c).First(&sandbox, uint(id)).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Sandbox not found"})
 		return
 	}
 
 	// Update status to PENDING during connection attempt
 	sandbox.Status = "PENDING"
-	_ = database.DB.Save(&sandbox)
+	_ = database.DB.WithContext(c).Save(&sandbox)
 
 	connTime, err := services.VSI.Connect(uint(id))
 
@@ -138,11 +138,11 @@ func ConnectSandbox(c *gin.Context) {
 
 	if err != nil {
 		sandbox.Status = "ERROR"
-		_ = database.DB.Save(&sandbox)
+		_ = database.DB.WithContext(c).Save(&sandbox)
 
 		auditLog.Message = "VSI connection failed: " + err.Error()
 		auditLog.LogLevel = "ERROR"
-		_ = database.DB.Create(&auditLog)
+		_ = database.DB.WithContext(c).Create(&auditLog)
 
 		logger.Log.Error("Sandbox connection failed", zap.Uint("sandbox_id", uint(id)), zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -154,11 +154,11 @@ func ConnectSandbox(c *gin.Context) {
 	}
 
 	sandbox.Status = "RUNNING"
-	_ = database.DB.Save(&sandbox)
+	_ = database.DB.WithContext(c).Save(&sandbox)
 
 	auditLog.Message = "VSI connection established successfully in " + connTime.String()
 	auditLog.LogLevel = "INFO"
-	_ = database.DB.Create(&auditLog)
+	_ = database.DB.WithContext(c).Create(&auditLog)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":         "Sandbox connected successfully",
@@ -177,13 +177,13 @@ func DisconnectSandbox(c *gin.Context) {
 	}
 
 	var sandbox models.Sandbox
-	if err := database.DB.First(&sandbox, uint(id)).Error; err != nil {
+	if err := database.DB.WithContext(c).First(&sandbox, uint(id)).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Sandbox not found"})
 		return
 	}
 
 	sandbox.Status = "STOPPED"
-	_ = database.DB.Save(&sandbox)
+	_ = database.DB.WithContext(c).Save(&sandbox)
 
 	// Write log
 	auditLog := models.SandboxLog{
@@ -191,7 +191,7 @@ func DisconnectSandbox(c *gin.Context) {
 		Message:   "VSI disconnected.",
 		LogLevel:  "INFO",
 	}
-	_ = database.DB.Create(&auditLog)
+	_ = database.DB.WithContext(c).Create(&auditLog)
 
 	logger.Log.Info("Sandbox disconnected", zap.Uint("sandbox_id", uint(id)))
 
@@ -211,7 +211,7 @@ func RunCommandSandbox(c *gin.Context) {
 	}
 
 	var sandbox models.Sandbox
-	if err := database.DB.First(&sandbox, uint(id)).Error; err != nil {
+	if err := database.DB.WithContext(c).First(&sandbox, uint(id)).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Sandbox not found"})
 		return
 	}
@@ -235,7 +235,7 @@ func RunCommandSandbox(c *gin.Context) {
 	if err != nil {
 		auditLog.Message = "VSI command run failed ('" + input.Command + "'): " + err.Error()
 		auditLog.LogLevel = "WARNING"
-		_ = database.DB.Create(&auditLog)
+		_ = database.DB.WithContext(c).Create(&auditLog)
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Command execution failed",
@@ -246,7 +246,7 @@ func RunCommandSandbox(c *gin.Context) {
 
 	auditLog.Message = "VSI command executed: '" + input.Command + "'"
 	auditLog.LogLevel = "INFO"
-	_ = database.DB.Create(&auditLog)
+	_ = database.DB.WithContext(c).Create(&auditLog)
 
 	c.JSON(http.StatusOK, gin.H{
 		"command": input.Command,
@@ -258,7 +258,7 @@ func RunCommandSandbox(c *gin.Context) {
 func GetLogs(c *gin.Context) {
 	var logs []models.SandboxLog
 
-	tx := database.DB.Order("created_at desc")
+	tx := database.DB.WithContext(c).Order("created_at desc")
 
 	// Filter by sandbox ID if requested
 	sandboxIDStr := c.Query("sandbox_id")
@@ -274,8 +274,16 @@ func GetLogs(c *gin.Context) {
 		tx = tx.Where("log_level = ?", level)
 	}
 
-	// Limit to last 100 entries for safety
-	tx = tx.Limit(100)
+	// Limit to last 100 entries for safety, or 20000 if heavy load is enabled
+	services.FailureConfig.Lock()
+	heavyLoad := services.FailureConfig.HeavyLoad
+	services.FailureConfig.Unlock()
+
+	limit := 100
+	if heavyLoad {
+		limit = 20000
+	}
+	tx = tx.Limit(limit)
 
 	if err := tx.Find(&logs).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve logs"})

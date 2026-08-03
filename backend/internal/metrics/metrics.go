@@ -86,7 +86,7 @@ var (
 			Help:    "Database query duration in seconds.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 2},
 		},
-		[]string{"query_type", "table"}, // query_type: SELECT, INSERT, UPDATE, DELETE
+		[]string{"query_type", "table", "endpoint"}, // query_type: SELECT, INSERT, UPDATE, DELETE
 	)
 
 	DbQueryErrorsTotal = prometheus.NewCounterVec(
@@ -101,6 +101,15 @@ var (
 		prometheus.GaugeOpts{
 			Name: "active_database_connections",
 			Help: "Number of active database connections in the connection pool.",
+		},
+	)
+
+	// UI Metrics
+	UiLoadDuration = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "ui_load_duration_seconds",
+			Help:    "Latency of UI page loading in seconds.",
+			Buckets: prometheus.DefBuckets,
 		},
 	)
 )
@@ -118,4 +127,5 @@ func RegisterMetrics() {
 	prometheus.MustRegister(DbQueryDuration)
 	prometheus.MustRegister(DbQueryErrorsTotal)
 	prometheus.MustRegister(ActiveDatabaseConnections)
+	prometheus.MustRegister(UiLoadDuration)
 }

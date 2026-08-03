@@ -1,11 +1,15 @@
 package database
 
 import (
+	"fmt"
 	"time"
 
 	"backend/internal/api/services"
+	"backend/internal/logger"
 	"backend/internal/metrics"
 
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -60,10 +64,35 @@ func afterCallback(queryType string) func(*gorm.DB) {
 			tableName = "unknown"
 		}
 
-		metrics.DbQueryDuration.WithLabelValues(queryType, tableName).Observe(duration)
+		// Extract HTTP route path from context if GORM query is executed within a Gin request
+		endpoint := "background"
+		if db.Statement.Context != nil {
+			if ginCtx, ok := db.Statement.Context.(*gin.Context); ok && ginCtx != nil {
+				endpoint = ginCtx.FullPath()
+				if endpoint == "" {
+					endpoint = ginCtx.Request.URL.Path
+				}
+			}
+		}
+
+		metrics.DbQueryDuration.WithLabelValues(queryType, tableName, endpoint).Observe(duration)
 
 		if db.Error != nil && db.Error != gorm.ErrRecordNotFound {
 			metrics.DbQueryErrorsTotal.WithLabelValues(queryType, tableName).Inc()
+		}
+
+		// Trigger SMTP email alert if DB query duration exceeds 500ms (0.5 seconds) SLA
+		if duration >= 0.5 {
+			logger.Log.Warn("Database Query SLA breach detected! Sending email alert...",
+				zap.String("query_type", queryType),
+				zap.String("table", tableName),
+				zap.String("endpoint", endpoint),
+				zap.Float64("duration_seconds", duration),
+			)
+			reason := "Database Query SLA Breach (>500ms)"
+			action := "Investigate database query performance. Analyze query plan (EXPLAIN ANALYZE), add indexes, or tune postgres configs."
+			latencyDuration := time.Duration(duration * float64(time.Second))
+			go services.Email.SendLatencyAlert(queryType, fmt.Sprintf("DB Query: %s on %s", tableName, endpoint), "db-query", latencyDuration, "127.0.0.1", reason, action)
 		}
 	}
 }

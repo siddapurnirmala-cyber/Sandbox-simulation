@@ -87,7 +87,6 @@ func (v *VSIService) Connect(sandboxID uint) (time.Duration, error) {
 	metrics.VsiConnectionDuration.Observe(duration.Seconds())
 	return duration, err
 }
-
 func (v *VSIService) RunCommand(sandboxID uint, command string) (string, error) {
 	logger.Log.Info("Executing remote command on VSI", zap.Uint("sandbox_id", sandboxID), zap.String("command", command))
 
@@ -100,7 +99,25 @@ func (v *VSIService) RunCommand(sandboxID uint, command string) (string, error) 
 		return "", fmt.Errorf("bash: command execution failed for: '%s'", command)
 	}
 
-	output := fmt.Sprintf("Sandbox-%d-VSI$ %s\nSUCCESS: Command executed successfully.", sandboxID, command)
+	var output string
+	switch command {
+	case "uname -a":
+		output = fmt.Sprintf("Linux Sandbox-VSI-%d 5.15.0-88-generic #98-Ubuntu SMP Mon Oct 2 15:18:56 UTC 2023 x86_64 x86_64 x86_64 GNU/Linux", sandboxID)
+	case "df -h":
+		output = "Filesystem      Size  Used Avail Use% Mounted on\n" +
+			"/dev/sda1        40G   14G   26G  35% /\n" +
+			"tmpfs           3.9G     0  3.9G   0% /dev/shm\n" +
+			"/dev/sdb1       100G   24G   76G  24% /data"
+	case "free -m", "free -h":
+		output = "              total        used        free      shared  buff/cache   available\n" +
+			"Mem:          7.8Gi       2.4Gi       3.1Gi       120Mi       2.3Gi       5.1Gi\n" +
+			"Swap:         2.0Gi          0B       2.0Gi"
+	case "uptime":
+		output = fmt.Sprintf(" %s up 3 days, 14:22,  1 user,  load average: 0.12, 0.08, 0.05", time.Now().Format("15:04:05"))
+	default:
+		output = fmt.Sprintf("Sandbox-VSI-%d: command '%s' completed successfully.", sandboxID, command)
+	}
+
 	logger.Log.Info("VSI command execution completed", zap.Uint("sandbox_id", sandboxID), zap.String("command", command))
 	return output, nil
 }

@@ -13,7 +13,9 @@ import (
 	"sync"
 	"time"
 
+	"backend/internal/api/models"
 	"backend/internal/api/services"
+	"backend/internal/database"
 	"backend/internal/logger"
 	"backend/internal/metrics"
 
@@ -89,6 +91,8 @@ func RecoveryMiddleware() gin.HandlerFunc {
 	}
 }
 
+
+
 // LoggingMiddleware logs detailed structured JSON requests
 func LoggingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -132,14 +136,56 @@ func LoggingMiddleware() gin.HandlerFunc {
 		}
 
 		// Log warning/error level depending on HTTP code
+		logLevel := "INFO"
 		if status >= 500 {
+			logLevel = "ERROR"
 			logFields[len(logFields)-1] = zap.String("log_level", "ERROR")
 			logger.Log.Error("HTTP Request Failed", logFields...)
 		} else if status >= 400 {
+			logLevel = "WARNING"
 			logFields[len(logFields)-1] = zap.String("log_level", "WARNING")
 			logger.Log.Warn("HTTP Request Client Warning", logFields...)
 		} else {
 			logger.Log.Info("HTTP Request Completed", logFields...)
+		}
+
+		// Persist HTTP request log to SQL database for the logs explorer
+		var sandboxID uint = 0
+		sandboxIDStr := c.Param("id")
+		if sandboxIDStr == "" {
+			sandboxIDStr = c.Query("sandbox_id")
+		}
+		if sID, err := strconv.ParseUint(sandboxIDStr, 10, 32); err == nil {
+			sandboxID = uint(sID)
+		}
+
+		message := fmt.Sprintf("HTTP %s %s - Status: %d - Latency: %s - IP: %s", c.Request.Method, path, status, latency.String(), clientIP)
+		if errMsg != "" {
+			message += " - Error: " + errMsg
+		}
+
+		if database.DB != nil {
+			_ = database.DB.WithContext(c).Create(&models.SandboxLog{
+				SandboxID: sandboxID,
+				Message:   message,
+				LogLevel:  logLevel,
+			})
+		}
+
+		// Trigger an SMTP email alert if latency exceeds 500ms SLA
+		if latency >= 500*time.Millisecond {
+			// Exclude internal telemetry/health paths to prevent alert spamming from polling
+			if path != "/health" && path != "/metrics" {
+				logger.Log.Warn("API SLA breach detected! Triggering email alert...",
+					zap.String("method", c.Request.Method),
+					zap.String("path", path),
+					zap.String("latency", latency.String()),
+				)
+				// Trigger asynchronously in a goroutine so it doesn't block client response
+				reason := "API Response Time SLA Breach (>500ms)"
+				action := "Investigate API performance. Review backend system logs, CPU/Memory metrics, and database connection pools."
+				go services.Email.SendLatencyAlert(c.Request.Method, path, reqID, latency, clientIP, reason, action)
+			}
 		}
 	}
 }
@@ -314,7 +360,10 @@ func FailureSimulatorMiddleware() gin.HandlerFunc {
 		services.FailureConfig.Unlock()
 
 		if apiDelay > 0 {
-			time.Sleep(apiDelay)
+			path := c.Request.URL.Path
+			if path != "/health" && path != "/metrics" {
+				time.Sleep(apiDelay)
+			}
 		}
 
 		if randomErrors {

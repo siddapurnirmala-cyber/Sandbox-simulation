@@ -17,14 +17,30 @@ type FailureState struct {
 	APIDelay      time.Duration
 	DBDelay       time.Duration
 	DBFailure     bool
+	UIDelay       time.Duration
 	VSITimeout    bool
 	RandomErrors  bool
+	HeavyLoad     bool
 	MemoryLeak    [][]byte
 	CpuBurnCancel []context.CancelFunc
 }
 
 var FailureConfig = &FailureState{
 	MemoryLeak: make([][]byte, 0),
+}
+
+func (fs *FailureState) SetHeavyLoad(enable bool) {
+	fs.Lock()
+	defer fs.Unlock()
+	fs.HeavyLoad = enable
+	logger.Log.Info("Simulate Heavy Data Load state changed", zap.Bool("enabled", enable))
+}
+
+func (fs *FailureState) SetUIDelay(ms int) {
+	fs.Lock()
+	defer fs.Unlock()
+	fs.UIDelay = time.Duration(ms) * time.Millisecond
+	logger.Log.Info("Simulate UI Delay set", zap.Int("ms", ms))
 }
 
 func (fs *FailureState) SetAPIDelay(ms int) {

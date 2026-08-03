@@ -58,25 +58,6 @@ services:
     depends_on:
       - backend
 
-  loki:
-    image: grafana/loki:2.8.2
-    container_name: sandbox-loki
-    volumes:
-      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
-    command: -config.file=/etc/loki/local-config.yaml
-    ports:
-      - "3100:3100"
-
-  promtail:
-    image: grafana/promtail:2.8.2
-    container_name: sandbox-promtail
-    volumes:
-      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
-      - sandbox-logs:/var/log/sandbox:ro
-    command: -config.file=/etc/promtail/config.yml
-    depends_on:
-      - loki
-
   grafana:
     image: grafana/grafana:9.5.3
     container_name: sandbox-grafana
@@ -91,7 +72,6 @@ services:
       - "3001:3000"
     depends_on:
       - prometheus
-      - loki
 
   backend:
     build:
@@ -105,11 +85,14 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - DB_NAME=sandbox_db
-      - LOG_FILE=/var/log/sandbox/backend.log
+      - LOG_FILE=backend.log
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=channabasava.bollolli@gmail.com
+      - SMTP_PASSWORD=yyufzdqbuybknssk
+      - ALERT_RECEIVER=Channabasava.V@infobellit.com
     ports:
       - "8080:8080"
-    volumes:
-      - sandbox-logs:/var/log/sandbox
     depends_on:
       postgres:
         condition: service_healthy
@@ -124,6 +107,15 @@ services:
     depends_on:
       - backend
 
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: sandbox-nginx-proxy
+    volumes:
+      - ./monitoring/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+
 volumes:
   postgres-data:
-  sandbox-logs:

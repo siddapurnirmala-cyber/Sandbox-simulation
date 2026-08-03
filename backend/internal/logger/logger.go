@@ -17,28 +17,33 @@ func InitLogger(logPath string) {
 		_ = os.MkdirAll(dir, 0755)
 	}
 
-	encoderConfig := zap.NewProductionEncoderConfig()
-	encoderConfig.TimeKey = "timestamp"
-	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	// Production JSON encoder configurations for the log file
+	fileEncoderConfig := zap.NewProductionEncoderConfig()
+	fileEncoderConfig.TimeKey = "timestamp"
+	fileEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	fileEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	fileEncoder := zapcore.NewJSONEncoder(fileEncoderConfig)
 
-	// Write to both stdout and file
-	var syncers []zapcore.WriteSyncer
-	syncers = append(syncers, zapcore.AddSync(os.Stdout))
+	// Colorized Console encoder configurations for the standard output
+	consoleEncoderConfig := zap.NewProductionEncoderConfig()
+	consoleEncoderConfig.TimeKey = "timestamp"
+	consoleEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	consoleEncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder // Green INFO, Yellow WARN, Red ERROR
+	consoleEncoder := zapcore.NewConsoleEncoder(consoleEncoderConfig)
 
+	var cores []zapcore.Core
+
+	// 1. Stdout: Console encoder (human-readable)
+	cores = append(cores, zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), zap.DebugLevel))
+
+	// 2. Log File: JSON encoder (machine-readable structured format)
 	logFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err == nil {
-		syncers = append(syncers, zapcore.AddSync(logFile))
+		cores = append(cores, zapcore.NewCore(fileEncoder, zapcore.AddSync(logFile), zap.DebugLevel))
 	}
 
-	writeSyncer := zapcore.NewMultiWriteSyncer(syncers...)
+	combinedCore := zapcore.NewTee(cores...)
 
-	core := zapcore.NewCore(
-		zapcore.NewJSONEncoder(encoderConfig),
-		writeSyncer,
-		zap.DebugLevel,
-	)
-
-	Log = zap.New(core, zap.AddCaller())
+	Log = zap.New(combinedCore, zap.AddCaller())
 	zap.ReplaceGlobals(Log)
 }

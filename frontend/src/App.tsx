@@ -62,6 +62,7 @@ export default function App() {
   const [simRandomErrors, setSimRandomErrors] = useState(false);
   const [simHighCpu, setSimHighCpu] = useState(false);
   const [simHighMemory, setSimHighMemory] = useState(0);
+  const [simHeavyLoad, setSimHeavyLoad] = useState(false);
 
   // Create form state
   const [newName, setNewName] = useState('');
@@ -148,11 +149,74 @@ export default function App() {
     return () => clearInterval(interval);
   }, [pollingActive]);
 
+  // Send RUM UI Load Telemetry to backend
+  useEffect(() => {
+    const sendTelemetry = async () => {
+      const perf = window.performance.timing;
+      let loadTimeMs = perf.loadEventEnd - perf.navigationStart;
+      if (loadTimeMs <= 0) {
+        loadTimeMs = performance.now();
+      }
+
+      // Check if there is an artificial UI delay configured on the backend
+      try {
+        const delayRes = await fetch(`${API_BASE}/simulate/ui-delay`);
+        if (delayRes.ok) {
+          const delayData = await delayRes.json();
+          const delayMs = delayData.delay_ms || 0;
+          if (delayMs > 0) {
+            // Intentionally block the RUM sender to simulate actual UI render hanging
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+            loadTimeMs += delayMs;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to query simulated UI delay:', e);
+      }
+
+      fetch(`${API_BASE}/telemetry/ui-load`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ load_time_ms: loadTimeMs })
+      })
+      .then(() => console.log(`%c[RUM Telemetry] Page load time: ${Math.round(loadTimeMs)}ms successfully reported to backend.`, "color: #00ff00; font-weight: bold;"))
+      .catch(err => console.error('Failed to send RUM telemetry:', err));
+    };
+
+    if (document.readyState === 'complete') {
+      sendTelemetry();
+    } else {
+      window.addEventListener('load', sendTelemetry);
+    }
+    return () => window.removeEventListener('load', sendTelemetry);
+  }, []);
+
+  // Fetch active simulation states from backend
+  const fetchSimulationStates = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/simulate/states`);
+      if (res.ok) {
+        const data = await res.json();
+        setSimApiDelay(data.api_delay_ms || 0);
+        setSimDbDelay(data.db_delay_ms || 0);
+        setSimDbFailure(data.db_failure || false);
+        setSimVsiTimeout(data.vsi_timeout || false);
+        setSimRandomErrors(data.random_errors || false);
+        setSimHeavyLoad(data.heavy_load || false);
+        setSimHighCpu(data.high_cpu || false);
+        setSimHighMemory(data.high_memory || 0);
+      }
+    } catch (e) {
+      console.error('Failed to sync simulation states from backend:', e);
+    }
+  }, []);
+
   // Load initial content
   useEffect(() => {
+    fetchSimulationStates();
     fetchSandboxes();
     fetchLogs();
-  }, [fetchSandboxes, fetchLogs, activeTab]);
+  }, [fetchSimulationStates, fetchSandboxes, fetchLogs, activeTab]);
 
   // Create Sandbox
   const handleCreate = async (e: React.FormEvent) => {
@@ -291,6 +355,11 @@ export default function App() {
           endpoint = '/simulate/high-memory';
           body = { megabytes: Number(val), enable: Number(val) > 0 };
           setSimHighMemory(Number(val));
+          break;
+        case 'heavy-load':
+          endpoint = '/simulate/heavy-load';
+          body = { enable: Boolean(val) };
+          setSimHeavyLoad(Boolean(val));
           break;
       }
 
@@ -901,6 +970,19 @@ export default function App() {
                         className={`btn ${simRandomErrors ? 'btn-danger' : 'btn-secondary'}`}
                       >
                         {simRandomErrors ? 'Enabled' : 'Disabled'}
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>Simulate Heavy Database Load</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Injects 50,000 dummy logs to naturally delay DB query & render speeds</div>
+                      </div>
+                      <button 
+                        onClick={() => handleToggleFailure('heavy-load', !simHeavyLoad)}
+                        className={`btn ${simHeavyLoad ? 'btn-danger' : 'btn-secondary'}`}
+                      >
+                        {simHeavyLoad ? 'Enabled' : 'Disabled'}
                       </button>
                     </div>
                   </div>
