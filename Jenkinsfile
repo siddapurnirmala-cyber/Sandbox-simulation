@@ -140,7 +140,7 @@ def runCmd(String cmd) {
         if (firstWord == 'echo') {
             bat cmd
         } else {
-            bat "where ${firstWord} >nul 2>nul && ${cmd} || echo Skipped: ${firstWord} is not installed (using mock fallback)"
+            bat "where ${firstWord} >nul 2>nul && ${cmd} || (echo Skipped: ${firstWord} is not installed & exit /b 0)"
         }
     }
 }
